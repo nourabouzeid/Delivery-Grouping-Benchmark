@@ -1,0 +1,5 @@
+ID,Area,Priority,Package Weight (kg),Reason
+6,Zamalek,1,12.5,package weight 12.5kg exceeds vehicle capacity 10.0kg (ID 6) - cannot ever be shipped
+8,Heliopolis,,2.0,invalid priority '' (ID 8)
+9,Dokki,3,abc,invalid weight 'abc' (ID 9)
+10,,2,1.0,missing area (ID 10)

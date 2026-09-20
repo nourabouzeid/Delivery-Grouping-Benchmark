@@ -109,3 +109,22 @@ def write_trips_csv(trips, out_path: str) -> None:
         for trip in trips:
             for d in trip.deliveries:
                 writer.writerow([trip.index, d.id, d.area, d.priority, d.weight])
+
+
+def write_rejected_csv(rejected: List[RejectedDelivery], out_path: str) -> None:
+    columns: List[str] = []
+    for r in rejected:
+        for key in r.raw:
+            if key is not None and key not in columns:
+                columns.append(key)
+
+    reason_col = "Reason"
+    while reason_col in columns:  # don't collide with an input column of the same name
+        reason_col = "_" + reason_col
+
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(columns + [reason_col])
+        for r in rejected:
+            row = ["" if r.raw.get(c) is None else r.raw[c] for c in columns]
+            writer.writerow(row + [r.reason])

@@ -17,11 +17,11 @@ from typing import List
 
 from algorithms import ALL_ALGORITHMS
 from benchmark import print_report, run_all, run_benchmark
-from io_utils import load_deliveries, write_trips_csv
+from io_utils import load_deliveries, write_trips_csv, write_rejected_csv
 from models import Delivery, RejectedDelivery
 
 DEFAULT_CAPACITY_KG = 10.0
-
+DEFAULT_REJECTED_PATH = "rejected_rows.csv"
 
 def output_path_for_algorithm(out_path: str, algorithm_name: str) -> str:
     """Insert the algorithm name before the file extension, e.g. trips.csv -> trips_priority-queue.csv."""
@@ -41,6 +41,10 @@ def parse_args():
     parser.add_argument("--algorithm", choices=[a.name for a in ALL_ALGORITHMS],
                          help="Run only this one algorithm and print its trips in detail "
                               "(default: benchmark all registered algorithms)")
+    parser.add_argument("--rejected-out", default=DEFAULT_REJECTED_PATH,
+                         help="Where to write rows rejected from the input, with the reason "
+                              f"for each (default: {DEFAULT_REJECTED_PATH}). Only written "
+                              "when at least one row is rejected.")
     parser.add_argument(
         "--out",
         help="Optional path to write trip assignments as CSV. When running all algorithms, "
@@ -63,8 +67,7 @@ def main():
 
     if rejected:
         print(f"Rejected {len(rejected)} row(s) from input:")
-        for r in rejected:
-            print(r)
+        write_rejected_csv(rejected, args.rejected_out)
         print()
 
     if not deliveries:
@@ -79,8 +82,6 @@ def main():
         result = run_benchmark(algo, deliveries, args.capacity, repeat=args.repeat)
         print_report([result])
         print(f"\nTrips produced by '{algo.name}':")
-        for trip in result.trips:
-            print(f"  {trip}")
         if args.out:
             write_trips_csv(result.trips, args.out)
             print(f"\nWrote trip assignment to {args.out}")
