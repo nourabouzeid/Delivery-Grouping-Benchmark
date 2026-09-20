@@ -12,15 +12,23 @@ Usage:
 
 import argparse
 import sys
+from pathlib import Path
+from typing import List
 
 from algorithms import ALL_ALGORITHMS
 from benchmark import print_report, run_all, run_benchmark
 from io_utils import load_deliveries, write_trips_csv
-
-from typing import List
 from models import Delivery, RejectedDelivery
 
 DEFAULT_CAPACITY_KG = 10.0
+
+
+def output_path_for_algorithm(out_path: str, algorithm_name: str) -> str:
+    """Insert the algorithm name before the file extension, e.g. trips.csv -> trips_priority-queue.csv."""
+    path = Path(out_path)
+    suffix = path.suffix or ".csv"
+    safe_name = algorithm_name.replace("/", "-")
+    return str(path.with_name(f"{path.stem}_{safe_name}{suffix}"))
 
 
 def parse_args():
@@ -33,7 +41,11 @@ def parse_args():
     parser.add_argument("--algorithm", choices=[a.name for a in ALL_ALGORITHMS],
                          help="Run only this one algorithm and print its trips in detail "
                               "(default: benchmark all registered algorithms)")
-    parser.add_argument("--out", help="Optional path to write the winning/selected trips as CSV")
+    parser.add_argument(
+        "--out",
+        help="Optional path to write trip assignments as CSV. When running all algorithms, "
+             "one file is written per algorithm (the algorithm name is inserted into the filename).",
+    )
     return parser.parse_args()
 
 
@@ -76,10 +88,11 @@ def main():
         results = run_all(ALL_ALGORITHMS, deliveries, args.capacity, repeat=args.repeat)
         print_report(results)
         if args.out:
-            # Default: write out the trips from the first registered algorithm
-            # unless the user picked one with --algorithm.
-            write_trips_csv(results[0].trips, args.out)
-            print(f"\nWrote trip assignment ({results[0].algorithm_name}) to {args.out}")
+            print()
+            for result in results:
+                out_path = output_path_for_algorithm(args.out, result.algorithm_name)
+                write_trips_csv(result.trips, out_path)
+                print(f"Wrote trip assignment ({result.algorithm_name}) to {out_path}")
 
 
 if __name__ == "__main__":

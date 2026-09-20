@@ -15,10 +15,11 @@ class Trip:
     """A single vehicle trip: an ordered bag of deliveries."""
     index: int
     deliveries: List[Delivery] = field(default_factory=list)
+    total_weight: float = 0.0
 
-    @property
-    def total_weight(self) -> float:
-        return sum(d.weight for d in self.deliveries)
+    def __post_init__(self) -> None:
+        if self.deliveries and self.total_weight == 0.0:
+            self.total_weight = sum(d.weight for d in self.deliveries)
 
     @property
     def areas(self) -> Set[str]:
@@ -32,6 +33,7 @@ class Trip:
 
     def add(self, delivery: Delivery) -> None:
         self.deliveries.append(delivery)
+        self.total_weight += delivery.weight
 
     def __repr__(self) -> str:
         ids = [d.id for d in self.deliveries]

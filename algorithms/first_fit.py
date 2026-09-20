@@ -9,8 +9,8 @@ from algorithms.base import GroupingAlgorithm
 from models import Delivery, Trip
 
 
-class DummySequentialAlgorithm(GroupingAlgorithm):
-    name = "dummy-sequential"
+class FirstFitAlgorithm(GroupingAlgorithm):
+    name = "first-fit"
 
     def group(self, deliveries: List[Delivery], capacity: float) -> List[Trip]:
         return self._first_fit_pack(deliveries, capacity)

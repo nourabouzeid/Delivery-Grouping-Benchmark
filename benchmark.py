@@ -26,15 +26,24 @@ class BenchmarkResult:
     trips: List[Trip] = field(repr=False)
 
 
-def _run_once(algorithm: GroupingAlgorithm, deliveries: List[Delivery], capacity: float):
+def _run_once(
+    algorithm: GroupingAlgorithm,
+    deliveries: List[Delivery],
+    capacity: float,
+    *,
+    trace_memory: bool = False,
+):
     input_copy = list(deliveries)
 
-    tracemalloc.start()
+    if trace_memory:
+        tracemalloc.start()
     start = time.perf_counter()
     trips = algorithm.group(input_copy, capacity)
     elapsed = time.perf_counter() - start
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    peak = 0
+    if trace_memory:
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
 
     return trips, elapsed, peak
 
@@ -65,8 +74,14 @@ def run_benchmark(
     best_time = None
     peak_mem = 0
     trips = None
-    for _ in range(max(1, repeat)):
-        run_trips, elapsed, peak = _run_once(algorithm, deliveries, capacity)
+    n_repeat = max(1, repeat)
+    for i in range(n_repeat):
+        run_trips, elapsed, peak = _run_once(
+            algorithm,
+            deliveries,
+            capacity,
+            trace_memory=(i == 0),
+        )
         peak_mem = max(peak_mem, peak)
         if best_time is None or elapsed < best_time:
             best_time = elapsed
@@ -91,7 +106,12 @@ def run_all(
     capacity: float,
     repeat: int = 5,
 ) -> List[BenchmarkResult]:
-    return [run_benchmark(algo, deliveries, capacity, repeat=repeat) for algo in algorithms]
+    results = []
+    total = len(algorithms)
+    for i, algo in enumerate(algorithms, start=1):
+        print(f"[{i}/{total}] Running {algo.name} ({repeat} timed run(s))...", flush=True)
+        results.append(run_benchmark(algo, deliveries, capacity, repeat=repeat))
+    return results
 
 
 def print_report(results: List[BenchmarkResult]) -> None:
@@ -100,14 +120,14 @@ def print_report(results: List[BenchmarkResult]) -> None:
         return
 
     header = (
-        f"{'Algorithm':<20}{'Trips':>7}{'Time (ms)':>12}{'Peak Mem (KB)':>16}"
+        f"{'Algorithm':<28}{'Trips':>7}{'Time (ms)':>12}{'Peak Mem (KB)':>16}"
         f"{'Area Score':>12}{'Priority Score':>16}{'Avg Util %':>12}"
     )
     print(header)
     print("-" * len(header))
     for r in results:
         print(
-            f"{r.algorithm_name:<20}{r.trip_count:>7}{r.time_seconds * 1000:>12.4f}"
+            f"{r.algorithm_name:<28}{r.trip_count:>7}{r.time_seconds * 1000:>12.4f}"
             f"{r.peak_memory_bytes / 1024:>16.2f}{r.area_grouping_score:>12.3f}"
             f"{r.priority_adherence_score:>16.3f}{r.avg_trip_utilization * 100:>11.1f}%"
         )

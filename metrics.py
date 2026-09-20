@@ -1,6 +1,5 @@
 import math
 from collections import defaultdict
-from itertools import combinations
 from typing import List
 
 from models import Trip
@@ -49,31 +48,49 @@ def priority_adherence_score(trips: List[Trip]) -> float:
     """
     Did more urgent deliveries end up in earlier trips compared to less urgent ones?
 
-    Computed as a pairwise ranking accuracy: for every pair of deliveries
-    (a, b) with a strictly more urgent than b, check whether a's trip
-    index is <= b's trip index. Score = fraction of such pairs that are
-    correctly ordered. Pairs with equal priority are ignored (there's no
-    "correct" order to enforce between them).
+    Pairwise ranking accuracy: for every pair of deliveries (a, b) with a
+    strictly more urgent than b, check whether a's trip index is <= b's trip
+    index. Score = fraction of such pairs that are correctly ordered. Pairs
+    with equal priority are ignored.
+
+    Computed in O(n + P * T) via trip-index histograms (same result as
+    enumerating all pairs).
 
     score ~ [0, 1], where 1 is a perfect priority adherence
     """
-
-    all_deliveries = [(d, trip.index) for trip in trips for d in trip.deliveries]
-    if len(all_deliveries) < 2:
+    if sum(len(trip.deliveries) for trip in trips) < 2:
         return 1.0
 
+    by_priority = defaultdict(list)
+    max_trip = 0
+    for trip in trips:
+        max_trip = max(max_trip, trip.index)
+        for d in trip.deliveries:
+            by_priority[d.priority].append(trip.index)
+
+    if len(by_priority) < 2:
+        return 1.0
+
+    hist = [0] * (max_trip + 1)
+    less_count = 0
     correct = 0
     total = 0
-    for (d1, t1), (d2, t2) in combinations(all_deliveries, 2):
-        if d1.priority == d2.priority:
-            continue
-        if d1.priority < d2.priority:
-            urgent_trip, other_trip = t1, t2
-        else:
-            urgent_trip, other_trip = t2, t1
-        total += 1
-        if urgent_trip <= other_trip:
-            correct += 1
+
+    # Least-urgent class first, so the histogram is always "everyone less urgent".
+    for priority in sorted(by_priority, reverse=True):
+        current = by_priority[priority]
+        if less_count:
+            suffix = [0] * (max_trip + 2)
+            running = 0
+            for t in range(max_trip, -1, -1):
+                running += hist[t]
+                suffix[t] = running
+            for t in current:
+                total += less_count
+                correct += suffix[t]
+        for t in current:
+            hist[t] += 1
+            less_count += 1
 
     return 1.0 if total == 0 else correct / total
 
